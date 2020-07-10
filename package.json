@@ -1,0 +1,17 @@
+{
+  "name": "ivs-profile-autofiller",
+  "version": "1.0.0",
+  "description": "When someone login to a workspace, we autofill the info to user's profile",
+  "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=profileFiller"
+  },
+  "keywords": [],
+  "author": "Ian Su",
+  "license": "MIT",
+  "dependencies": {
+    "@google-cloud/functions-framework": "^1.6.0",
+    "@slack/events-api": "^2.3.0",
+    "@slack/web-api": "^5.10.0"
+  }
+}
