@@ -6,12 +6,14 @@
 
 'use strict';
 
-const oauthToken = process.env.SLACK_AUTH_TOKEN;
-const apiUrl = 'https://slack.com/api';
-
 const { WebClient } = require('@slack/web-api');
 const token = process.env.SLACK_AUTH_TOKEN;
 const web = new WebClient(token);
+const fs = require('fs');
+
+
+// Redis related config
+const { Client } = require('pg')
 
 
 /* Events */
@@ -29,50 +31,28 @@ exports.profileFiller = async (req, res) => {
     return res.status(401);
   }
 
-  res.status(200);
-
   // Events
-  if (q.event.type === "user_change") {
-    // If reacji was triggered && it is a correct emoji, translate the message into a specified language
+  if (q.event.type === "message") {
+    console.info("Get message.")
 
-    /*
-{ token: '...',
-  team_id: '...',
-  api_app_id: '...',
-  event:
-   { type: 'user_change',
-     user:
-      { id: '',
-        team_id: '',
-        profile: [Object],
-        is_admin: false,
-        is_owner: false,
-        is_primary_owner: false,
-        is_restricted: false,
-        is_ultra_restricted: false,
-        is_bot: false,
-        is_app_user: false,
-        updated: 1594365981,
-        locale: 'en-US' },
-     cache_ts: 1594365981,
-     event_ts: '1594365981.088600' },
-  type: 'event_callback',
-  event_id: '...',
-  event_time: 1594365981}
-    */
+    if (q.event.text != "update profile") return noOpResponse(res);
+  
+    let resp = await web.users.info({user: q.event.user})
+    let user_id = resp.user.id
+    let email = resp.user.profile.email
 
-    let user = q.event.user
-    console.log(user.profile)
-    let email = user.profile.email
-    console.log(`email: ${email}`)
-    if (email === "ian@infinityventures.com"){
-      await web.users.profile.set({user:user.id, profile:{"display_name":"Ian Su the White", "title": "The Lord of the Ring."}})
-    }
+    const client = new Client()
+    await client.connect()
+    const result = await client.query(`SELECT * FROM ivs_attendees WHERE email='${email}';`)
+    if (result.rows.length === 0) return noOpResponse(res);  // Return if no related data
+    let username, title
+    ({username, email, title} = result.rows[0])
+    web.users.profile.set({user:user_id, profile:{"display_name":username, "title": title}})
+    // let imgStr = fs.createReadStream("./1.png")
+    // web.users.setPhoto({image: imgStr})  // Try upload image from local.
+    await client.end()
 
-    // find user by email in redis?
-    // According to the enent.user info, we find it's realted information 
-
-
+    res.status(200);
     res.json("");
     return Promise.resolve();
   }

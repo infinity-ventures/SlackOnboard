@@ -12,6 +12,7 @@
   "dependencies": {
     "@google-cloud/functions-framework": "^1.6.0",
     "@slack/events-api": "^2.3.0",
-    "@slack/web-api": "^5.10.0"
+    "@slack/web-api": "^5.10.0",
+    "pg": "^8.3.0"
   }
 }
