@@ -9,16 +9,25 @@
 const { WebClient } = require('@slack/web-api');
 const token = process.env.SLACK_AUTH_TOKEN;
 const web = new WebClient(token);
-const fs = require('fs');
 
 
-// Redis related config
+
+// Postgres related config
 const { Client } = require('pg')
 
+// Google Cloud Storage Credential, only used locally.
+/* let credentials = {
+  projectId: 'introos',
+  keyFilename: process.env.GOOGLE_KEY_JSON
+}*/
 
-/* Events */
+const {Storage} = require('@google-cloud/storage');
+const storage = new Storage();  // credentials
+const bucketName = "ivs_attendees"
+
 
 exports.profileFiller = async (req, res) => {
+
   let q = req.body;
 
   if (q.type === 'url_verification') {
@@ -33,7 +42,6 @@ exports.profileFiller = async (req, res) => {
 
   // Events
   if (q.event.type === "message") {
-    console.info("Get message.")
 
     if (q.event.text != "update profile") return noOpResponse(res);
   
@@ -45,11 +53,26 @@ exports.profileFiller = async (req, res) => {
     await client.connect()
     const result = await client.query(`SELECT * FROM ivs_attendees WHERE email='${email}';`)
     if (result.rows.length === 0) return noOpResponse(res);  // Return if no related data
-    let username, title
-    ({username, email, title} = result.rows[0])
-    web.users.profile.set({user:user_id, profile:{"display_name":username, "title": title}})
-    // let imgStr = fs.createReadStream("./1.png")
-    // web.users.setPhoto({image: imgStr})  // Try upload image from local.
+    let username, title, img_file_name
+    ({username, email, title, img_file_name} = result.rows[0])
+    // console.info({username, email, title, img_file_name})
+
+    // list file names
+    /* const [files] = await storage.bucket(bucketName).getFiles();
+    console.log('Files:');
+    files.forEach(file => {
+      console.log(file.name);
+    });*/
+
+    // change profile img
+    if (img_file_name){
+      storage.bucket(bucketName).file(img_file_name).download(function(err, contents) {
+        web.users.setPhoto({image: contents}) 
+      })
+    }
+
+    // change profile info
+    web.users.profile.set({user:user_id, profile:{"display_name":username, "title": title, "real_name": username}})
     await client.end()
 
     res.status(200);
