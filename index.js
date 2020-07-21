@@ -15,14 +15,18 @@ const web = new WebClient(token);
 // Postgres related config
 const { Client } = require('pg')
 
-// Google Cloud Storage Credential, only used locally.
-/* let credentials = {
-  projectId: 'introos',
-  keyFilename: process.env.GOOGLE_KEY_JSON
-}*/
-
+// Google Cloud Storage Credential
 const {Storage} = require('@google-cloud/storage');
-const storage = new Storage();  // credentials
+
+if (process.env.GOOGLE_KEY_JSON){
+  let credentials = {
+    projectId: 'introos',
+    keyFilename: process.env.GOOGLE_KEY_JSON
+  }
+  const storage = new Storage(credentials);
+} else {
+  const storage = new Storage();
+}
 const bucketName = "ivs_attendees"
 
 
@@ -41,23 +45,47 @@ exports.profileFiller = async (req, res) => {
   }
 
   // Events
-  if (q.event.type === "message") {
+  let cond1 = q.event.type === "message" & q.event.text === "update profile";
+  let cond2 = q.event.type === "team_join"
 
-    if (q.event.text != "update profile") return noOpResponse(res);
-  
-    let resp = await web.users.info({user: q.event.user})
-    let user_id = resp.user.id
-    let email = resp.user.profile.email
+  if (cond1 | cond2) {
 
+
+    let user_id, email
+    if (cond1) {
+      user_id = q.event.user      
+      let resp = await web.users.profile.get({user: q.event.user, include_labels: true})
+      console.log(resp.profile)
+
+      email = resp.profile.email
+    } else {
+      user_id = q.event.user.id
+      email = q.event.user.profile.email
+    }
+
+    // postgres client
     const client = new Client()
     await client.connect()
-    const result = await client.query(`SELECT * FROM ivs_attendees WHERE email='${email}';`)
+    const result = await client.query(`SELECT * FROM ivs2020summer_attendees WHERE email='${email}';`)
+    client.end()
+  
     if (result.rows.length === 0) return noOpResponse(res);  // Return if no related data
-    let username, title, img_file_name
-    ({username, email, title, img_file_name} = result.rows[0])
+    let {username, username_jp, company_name, title, category, industry, fb_url, profie_img} = result.rows[0]
     // console.info({username, email, title, img_file_name})
 
-    // list file names
+    // change profile info
+    
+    let custom_fields = {Xf017EPYEVHQ: {value: company_name}, 
+                         Xf017DD0FKS9: {value: title},
+                         Xf017F0QEZ9R: {value: category},
+                         Xf017M03U9UL: {value: industry},
+                         Xf017DCZF8SZ: {value: fb_url},
+                         Xf017DQLKDNZ: {value: username_jp}
+    }
+    web.users.profile.set({user:user_id, profile:{"display_name":username, "real_name": username, "title": `${title} (${company_name} )`,
+                          fields: custom_fields}})
+
+    // list file names for debug
     /* const [files] = await storage.bucket(bucketName).getFiles();
     console.log('Files:');
     files.forEach(file => {
@@ -65,18 +93,14 @@ exports.profileFiller = async (req, res) => {
     });*/
 
     // change profile img
-    if (img_file_name){
-      storage.bucket(bucketName).file(img_file_name).download(function(err, contents) {
+    if (profie_img){
+      storage.bucket(bucketName).file(profie_img).download(function(err, contents) {
         web.users.setPhoto({image: contents}) 
       })
     }
-
-    // change profile info
-    web.users.profile.set({user:user_id, profile:{"display_name":username, "title": title, "real_name": username}})
-    await client.end()
-
+ 
     res.status(200);
-    res.json("");
+    res.json({});
     return Promise.resolve();
   }
 };
