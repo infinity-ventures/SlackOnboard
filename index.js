@@ -74,8 +74,12 @@ const updateProfile = (targetUserId, profileDict) => {
   return null
 }
 
-const inviteToChannels = () => {
-
+const inviteToChannels = (target_user_id, channels) => {
+  channels.forEach((chId) => {
+    web.conversations.invite({channel: chId, users: target_user_id}).catch(error => {
+        console.log(error)
+    })
+  })
 }
 
 exports.onboard = async (req, res) => {
@@ -95,49 +99,41 @@ exports.onboard = async (req, res) => {
   let team_join_cond = q.event.type === "team_join"
   let message_event_cond = q.event.type === "message"
   let update_profile_cond = q.event.text.match(up_rex) != null
-  // let invite_channels_cond = q.event.text.match(invite_rex) != null
+  let invite_channels_cond = q.event.text.match(invite_rex) != null
+  let target_email, target_user_id
 
 
   if (team_join_cond) {
-    let target_user_id = q.event.user.id
-    let target_email = q.event.user.profile.email
-    let data = await getDataByEmail(target_email)
-    if (data.length == 0) return noOpResponse()
-    updateProfile(target_user_id, data[0])
-    inviteToChannels()
+    target_user_id = q.event.user.id
+    target_email = q.event.user.profile.email
   } 
-  else {
-    if (!message_event_cond) return noOpResponse()  // need to me message event
+  else if (message_event_cond & (update_profile_cond | invite_channels_cond)) {
     let user_id_specified = q.event.text.match(user_id_rex)  // need to specified user_id
-    if (user_id_specified == null) return noOpResponse()
+    if (user_id_specified == null) return
     let user_id = q.event.user  // check if user is admin
     let resp = await web.users.info({user: user_id})
-    if (!resp.user.is_admin) return noOpResponse()
+    if (!resp.user.is_admin) return
   
     // get target user email
-    let target_user_id = user_id_specified[1]
+    target_user_id = user_id_specified[1]
     resp = await web.users.profile.get({user: target_user_id})  // include_labels: true
-    let target_email = resp.profile.email
+    target_email = resp.profile.email
+  } else {
+    return
+  }
 
-    let data = await getDataByEmail(target_email)
-    if (data.length == 0) return noOpResponse()
+  let data = await getDataByEmail(target_email)
+  if (data.length == 0) return 
 
-    if (update_profile_cond) {
-      updateProfile(target_user_id, data[0])
-    }
+  if (team_join_cond | update_profile_cond) {
+    updateProfile(target_user_id, data[0])
+  }
 
-    /* if (invite_channels_cond) {
-      inviteToChannels()
-    }*/
-
+  if (team_join_cond | invite_channels_cond) {
+    inviteToChannels(target_user_id, data[0]['channels_join'])
   }
 
   res.status(200);
   res.json({});
   return Promise.resolve();
 };
-
-function noOpResponse(response) {
-  response.status(200).send('No flag emoji reaction detected.');
-  return;
-}
