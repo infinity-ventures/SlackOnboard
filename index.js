@@ -1,7 +1,5 @@
 /* ***************************************************
- * Reacilator for Slack
- * Translate message when a user reacted with an emoji
- * Tomomi Imura (@girlie_mac)
+The main script to be exec on Google Cloud Function
  * ****************************************************/
 
 'use strict';
@@ -16,7 +14,7 @@ const web = new WebClient(token);
 const { Client } = require('pg')
 
 // Google Cloud Storage Credential
-const {Storage} = require('@google-cloud/storage');
+const { Storage } = require('@google-cloud/storage');
 
 if (process.env.GOOGLE_KEY_JSON){
   let credentials = {
@@ -30,9 +28,57 @@ if (process.env.GOOGLE_KEY_JSON){
 const bucketName = "ivs_attendees"
 
 const up_rex = /update\sprofile/i
+const invite_rex = /invite\schannels/i
 const user_id_rex = /\$([A-Z\d]+)\$/
 
-exports.profileFiller = async (req, res) => {
+
+const getDataByEmail = async (email) => {
+  // get data from PostGres
+  const client = new Client()
+  await client.connect()
+  const result = await client.query(`SELECT * FROM ivs2020summer_attendees WHERE email='${email}';`)
+  client.end()
+  return result.rows
+}
+
+const updateProfile = (targetUserId, profileDict) => {
+  let {company_name, title, category, industry, fb_url, username_jp, username, profie_img} = profileDict
+  let customFields = {Xf017EPYEVHQ: {value: company_name}, 
+    Xf017DD0FKS9: {value: title},
+    Xf017F0QEZ9R: {value: category},
+    Xf017M03U9UL: {value: industry},
+    Xf017DCZF8SZ: {value: fb_url},
+    Xf017DQLKDNZ: {value: username_jp}
+  }
+
+  web.users.profile.set({user:targetUserId, profile:{"display_name":username, "real_name": username, "title": `${title} (${company_name} )`,
+    fields: customFields}}).catch(e => {
+      console.warn(e)
+  })
+
+  /* const [files] = await storage.bucket(bucketName).getFiles();
+  console.log('Files:');
+  files.forEach(file => {
+    console.log(file.name);
+  });*/
+
+  // change profile img
+
+  if (profie_img){
+    storage.bucket(bucketName).file(profie_img).download(function(err, contents) {
+      web.users.setPhoto({image: contents}) 
+    }).catch(e => {
+      console.warn(e)
+    })
+  }
+  return null
+}
+
+const inviteToChannels = () => {
+
+}
+
+exports.onboard = async (req, res) => {
   let q = req.body;
 
   if (q.type === 'url_verification') {
@@ -46,74 +92,51 @@ exports.profileFiller = async (req, res) => {
   }
 
   // Events
-  let cond1 = q.event.type === "message" & q.event.text.match(up_rex) != null;
+  let team_join_cond = q.event.type === "team_join"
+  let message_event_cond = q.event.type === "message"
+  let update_profile_cond = q.event.text.match(up_rex) != null
+  // let invite_channels_cond = q.event.text.match(invite_rex) != null
+
+
+  if (team_join_cond) {
+    let target_user_id = q.event.user.id
+    let target_email = q.event.user.profile.email
+    let data = await getDataByEmail(target_email)
+    if (data.length == 0) return noOpResponse()
+    updateProfile(target_user_id, data[0])
+    inviteToChannels()
+  } 
+  else {
+    if (!message_event_cond) return noOpResponse()  // need to me message event
+    let user_id_specified = q.event.text.match(user_id_rex)  // need to specified user_id
+    if (user_id_specified == null) return noOpResponse()
+    let user_id = q.event.user  // check if user is admin
+    let resp = await web.users.info({user: user_id})
+    if (!resp.user.is_admin) return noOpResponse()
   
-  let cond2 = q.event.type === "team_join"
+    // get target user email
+    let target_user_id = user_id_specified[1]
+    resp = await web.users.profile.get({user: target_user_id})  // include_labels: true
+    let target_email = resp.profile.email
 
-  if (cond1 | cond2) {
+    let data = await getDataByEmail(target_email)
+    if (data.length == 0) return noOpResponse()
 
-    let user_id, target_email, target_user_id
-    if (cond1) {
-      let extract_user_id = q.event.text.match(user_id_rex)
-      user_id = q.event.user 
-      if (extract_user_id) { // check if user is admin
-        let resp = await web.users.info({user: user_id})
-        if (!resp.user.is_admin) return noOpResponse()
-      }
-      target_user_id = extract_user_id != null? extract_user_id[1]: user_id
-      let resp = await web.users.profile.get({user: target_user_id, include_labels: true})  
-      target_email = resp.profile.email
-    } else {  // cond2
-      target_user_id = q.event.user.id
-      target_email = q.event.user.profile.email
+    if (update_profile_cond) {
+      updateProfile(target_user_id, data[0])
     }
 
-    // postgres client
-    const client = new Client()
-    await client.connect()
-    const result = await client.query(`SELECT * FROM ivs2020summer_attendees WHERE email='${target_email}';`)
-    client.end()
-  
-    if (result.rows.length === 0) return noOpResponse(res);  // Return if no related data
-    let {username, username_jp, company_name, title, category, industry, fb_url, profie_img} = result.rows[0]
-    // console.info({username, email, title, img_file_name})
+    /* if (invite_channels_cond) {
+      inviteToChannels()
+    }*/
 
-    // change profile info
-    
-    let custom_fields = {Xf017EPYEVHQ: {value: company_name}, 
-                        Xf017DD0FKS9: {value: title},
-                        Xf017F0QEZ9R: {value: category},
-                        Xf017M03U9UL: {value: industry},
-                        Xf017DCZF8SZ: {value: fb_url},
-                        Xf017DQLKDNZ: {value: username_jp}
-    }
-
-    web.users.profile.set({user:target_user_id, profile:{"display_name":username, "real_name": username, "title": `${title} (${company_name} )`,
-                          fields: custom_fields}}).catch(e => {
-                            console.warn(e)
-                          })
-
-    // list file names for debug
-    /* const [files] = await storage.bucket(bucketName).getFiles();
-    console.log('Files:');
-    files.forEach(file => {
-      console.log(file.name);
-    });*/
-
-    // change profile img
-    if (profie_img){
-      storage.bucket(bucketName).file(profie_img).download(function(err, contents) {
-        web.users.setPhoto({image: contents}) 
-      }).catch(e => {
-        console.warn(e)
-      })
-    }
   }
 
   res.status(200);
   res.json({});
   return Promise.resolve();
 };
+
 function noOpResponse(response) {
   response.status(200).send('No flag emoji reaction detected.');
   return;

@@ -1,10 +1,10 @@
 {
-  "name": "ivs-profile-autofiller",
+  "name": "ivs-onboard",
   "version": "1.0.0",
-  "description": "When someone login to a workspace, we autofill the info to user's profile",
+  "description": "When someone login to a workspace, we autofill the info to user's profile and invite them to corresponding channels",
   "main": "index.js",
   "scripts": {
-    "start": "functions-framework --target=profileFiller"
+    "start": "functions-framework --target=onboard"
   },
   "keywords": [],
   "author": "Ian Su",
