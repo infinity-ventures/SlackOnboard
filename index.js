@@ -9,78 +9,12 @@ const token = process.env.SLACK_AUTH_TOKEN;
 const web = new WebClient(token);
 
 
-
-// Postgres related config
-const { Client } = require('pg')
-
-// Google Cloud Storage Credential
-const { Storage } = require('@google-cloud/storage');
-
-if (process.env.GOOGLE_KEY_JSON){
-  let credentials = {
-    projectId: 'introos',
-    keyFilename: process.env.GOOGLE_KEY_JSON
-  }
-  const storage = new Storage(credentials);
-} else {
-  const storage = new Storage();
-}
-const bucketName = "ivs_attendees"
+const { getDataByEmail, updateProfile, inviteToChannels, noOpResponse } = require('./utils.js')
 
 const up_rex = /update\sprofile/i
 const invite_rex = /invite\schannels/i
 const user_id_rex = /\$([A-Z\d]+)\$/
 
-
-const getDataByEmail = async (email) => {
-  // get data from PostGres
-  const client = new Client()
-  await client.connect()
-  const result = await client.query(`SELECT * FROM ivs2020summer_attendees WHERE email='${email}';`)
-  client.end()
-  return result.rows
-}
-
-const updateProfile = (targetUserId, profileDict) => {
-  let {company_name, title, category, industry, fb_url, username_jp, username, profie_img} = profileDict
-  let customFields = {Xf017EPYEVHQ: {value: company_name}, 
-    Xf017DD0FKS9: {value: title},
-    Xf017F0QEZ9R: {value: category},
-    Xf017M03U9UL: {value: industry},
-    Xf017DCZF8SZ: {value: fb_url},
-    Xf017DQLKDNZ: {value: username_jp}
-  }
-
-  web.users.profile.set({user:targetUserId, profile:{"display_name":username, "real_name": username, "title": `${title} (${company_name} )`,
-    fields: customFields}}).catch(e => {
-      console.warn(e)
-  })
-
-  /* const [files] = await storage.bucket(bucketName).getFiles();
-  console.log('Files:');
-  files.forEach(file => {
-    console.log(file.name);
-  });*/
-
-  // change profile img
-
-  if (profie_img){
-    storage.bucket(bucketName).file(profie_img).download(function(err, contents) {
-      web.users.setPhoto({image: contents}) 
-    }).catch(e => {
-      console.warn(e)
-    })
-  }
-  return null
-}
-
-const inviteToChannels = (target_user_id, channels) => {
-  channels.forEach((chId) => {
-    web.conversations.invite({channel: chId, users: target_user_id}).catch(error => {
-        console.log(error)
-    })
-  })
-}
 
 exports.onboard = async (req, res) => {
   let q = req.body;
@@ -109,21 +43,21 @@ exports.onboard = async (req, res) => {
   } 
   else if (message_event_cond & (update_profile_cond | invite_channels_cond)) {
     let user_id_specified = q.event.text.match(user_id_rex)  // need to specified user_id
-    if (user_id_specified == null) return
+    if (user_id_specified == null) return noOpResponse(res, `User id not specified`)
     let user_id = q.event.user  // check if user is admin
     let resp = await web.users.info({user: user_id})
-    if (!resp.user.is_admin) return
+    if (!resp.user.is_admin) return noOpResponse(res, "Only admin can use message to update profile or invite to channels")
   
     // get target user email
     target_user_id = user_id_specified[1]
     resp = await web.users.profile.get({user: target_user_id})  // include_labels: true
     target_email = resp.profile.email
   } else {
-    return
+    return noOpResponse(res, `Unhandled event: ${q.event.type}.`)
   }
 
   let data = await getDataByEmail(target_email)
-  if (data.length == 0) return 
+  if (data.length == 0) return noOpResponse(res, `Don't get data from Postgres by email`)
 
   if (team_join_cond | update_profile_cond) {
     updateProfile(target_user_id, data[0])

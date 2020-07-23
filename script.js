@@ -14,9 +14,10 @@ web.conversations.list().then(results => {
     console.log(tmp)
 })
 */
+const main = async () => {
 
-web.conversations.invite({channel: 'C016VCGE88J', users: 'U0162F6PERL'}).then(results =>{
-    console.log(results)
-}).catch(error => {
-    console.log(error)
-})
+    let resp = await web.users.conversations({types: "public_channel,private_channel"})
+    channels = resp['channels'].map(v => ({id: v['id'], name: v['name']}))
+}
+
+main();
