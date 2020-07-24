@@ -64,7 +64,7 @@ exports.onboard = async (req, res) => {
   }
 
   if (team_join_cond | invite_channels_cond) {
-    inviteToChannels(target_user_id, data[0]['channels_join'])
+    inviteToChannels(target_user_id, data[0]['channels'])
   }
 
   res.status(200);

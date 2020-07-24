@@ -14,4 +14,6 @@
 .gitignore
 
 node_modules
+users_profile_update.js
+reinvite_channels.js
 #!include:.gitignore
