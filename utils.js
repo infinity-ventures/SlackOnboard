@@ -22,7 +22,7 @@ const bucketName = "ivs_attendees"
 const checkDBColumn = async (email, col) => {
   const client = new Client()
   await client.connect()
-  await client.query(`UPDATE ivs2020summer_attendees SET ${col} = True WHERE email='${email}';`)
+  await client.query(`UPDATE ivs2020summer_attendees SET ${col} = True WHERE email='${email.toLowerCase()}';`)
   client.end()
 }
 
@@ -30,7 +30,7 @@ const getDataByEmail = async (email) => {
   // get data from PostGres
   const client = new Client()
   await client.connect()
-  const result = await client.query(`SELECT * FROM ivs2020summer_attendees WHERE email='${email}';`)
+  const result = await client.query(`SELECT * FROM ivs2020summer_attendees WHERE email='${email.toLowerCase()}';`)
   client.end()
   return result.rows
 }
@@ -52,8 +52,19 @@ const getEmailsWithChannels = async () => {
   return result.rows
 }
 
+const roleStatusMap = {
+  Startup: ':unicorn_face:',
+  VC: ':moneybag:',
+  CVC: ':moneybag:',
+  AngelInvestor: ':moneybag:',
+  ListedCompany: ':office:',
+  Media: ':book:',
+  Staff: ':ivs:',
+  Others: ':nerd_face:'
+}
+
 const updateProfile = (targetUserId, profileDict) => {
-  let {company_name, title, category, industry, fb_url, username_jp, username, profie_img, email} = profileDict
+  let {company_name, title, category, industry, fb_url, username_jp, username, profie_img, email, userrole} = profileDict
   let customFields = {Xf017EPYEVHQ: {value: company_name}, 
     Xf017DD0FKS9: {value: title},
     Xf017F0QEZ9R: {value: category},
@@ -62,8 +73,10 @@ const updateProfile = (targetUserId, profileDict) => {
     Xf017DQLKDNZ: {value: username_jp}
   }
 
+  let status_emoji = roleStatusMap[userrole]
+
   web.users.profile.set({user:targetUserId, profile:{"display_name":username, "real_name": username, "title": `${title} (${company_name} )`,
-    fields: customFields}}).then(() => {
+    status_emoji: status_emoji, fields: customFields}}).then(() => {
       checkDBColumn(email, 'profile_check')
     }).catch(e => {
       console.warn(e)

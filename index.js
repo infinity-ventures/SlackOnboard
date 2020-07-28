@@ -32,8 +32,8 @@ exports.onboard = async (req, res) => {
   // Events
   let team_join_cond = q.event.type === "team_join"
   let message_event_cond = q.event.type === "message"
-  let update_profile_cond = q.event.text.match(up_rex) != null
-  let invite_channels_cond = q.event.text.match(invite_rex) != null
+  let update_profile_cond = message_event_cond ? q.event.text.match(up_rex) != null : false
+  let invite_channels_cond = message_event_cond ? q.event.text.match(invite_rex) != null : false
   let target_email, target_user_id
 
 
@@ -52,12 +52,14 @@ exports.onboard = async (req, res) => {
     target_user_id = user_id_specified[1]
     resp = await web.users.profile.get({user: target_user_id})  // include_labels: true
     target_email = resp.profile.email
+    console.warn(`Get message command with text ${q.event.text} on user_id ${target_user_id}, email ${target_email}`)
   } else {
     return noOpResponse(res, `Unhandled event: ${q.event.type}.`)
   }
 
   let data = await getDataByEmail(target_email)
   if (data.length == 0) return noOpResponse(res, `Don't get data from Postgres by email`)
+  console.warn(`Get data ${data}`)
 
   if (team_join_cond | update_profile_cond) {
     updateProfile(target_user_id, data[0])
