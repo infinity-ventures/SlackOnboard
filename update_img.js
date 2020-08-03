@@ -1,7 +1,6 @@
 
 // update profile (or partially)
 
-const robot_token = 'xoxb-1094085760871-1233689111730-8ZWU3FfsJ3LcpZCAg6xhVXCU'  // need to move to env
 const { getAllNameEmails, updateColByEmail } = require('./utils.js')
 const { Storage } = require('@google-cloud/storage');
 var storage
@@ -17,7 +16,7 @@ if (process.env.GOOGLE_KEY_JSON){
 const bucketName = "ivs_attendees"
 
 const { WebClient } = require('@slack/web-api');
-const token = process.env.SLACK_AUTH_TOKEN;
+const token = process.env.SLACK_BOT_TOKEN;
 const web = new WebClient(token);
 
 const options = {
@@ -61,7 +60,6 @@ const main = async () => {
                 /* const [url] = await storage.bucket(bucketName).file(f.name).getSignedUrl(options);
                 web.chat.postMessage({
                     channel: id,
-                    token: robot_token,
                     text: `Hi ${row['username']}, 写真をまだアップロードしてないようですね！この写真はいかがですか？ダウンロードして使ってください　ダウンロードリンク: <${url}| ${row['username']}'s profile>.`})
                 */
             }

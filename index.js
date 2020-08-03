@@ -4,10 +4,12 @@ The main script to be exec on Google Cloud Function
 
 'use strict';
 
-const { WebClient } = require('@slack/web-api');
-const token = process.env.SLACK_AUTH_TOKEN;
-const web = new WebClient(token);
+require('dotenv').config();
 
+
+const { WebClient } = require('@slack/web-api');
+const token = process.env.SLACK_BOT_TOKEN;
+const web = new WebClient(token);
 
 const { getDataByEmail, updateProfile, inviteToChannels, noOpResponse } = require('./utils.js')
 

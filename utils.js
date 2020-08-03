@@ -2,7 +2,8 @@
 const { Client } = require('pg')
 
 const { WebClient } = require('@slack/web-api');
-const token = process.env.SLACK_AUTH_TOKEN;
+const token = process.env.SLACK_BOT_TOKEN;
+const admin_token = process.env.SLACK_USER_TOKEN;
 const web = new WebClient(token);
 
 
@@ -92,7 +93,7 @@ const updateProfile = (targetUserId, profileDict) => {
 
   let status_emoji = roleStatusMap[userrole]
 
-  web.users.profile.set({user:targetUserId, profile:{"display_name":username, "real_name": username, "title": `${title} (${company_name} )`,
+  web.users.profile.set({token:admin_token, user:targetUserId, profile:{"display_name":username, "real_name": username, "title": `${title} (${company_name} )`,
     status_emoji: status_emoji, fields: customFields}}).then(() => {
       checkDBColumn(email, 'profile_check')
     }).catch(e => {
@@ -103,12 +104,14 @@ const updateProfile = (targetUserId, profileDict) => {
 }
   
 const inviteToChannels = (target_user_id, channels) => {
+    /*
+      Go to https://api.slack.com/methods/conversations.list/test
+      to find a channel id.
+    */
     if (channels != null) {
       return Promise.all(channels.map(chId => {
-          web.conversations.invite({channel: chId, users: target_user_id})
-      })).catch(errors => {
-        console.log(errors)
-      })
+          web.conversations.invite({token:admin_token, channel: chId, users: target_user_id}).catch(err => {console.log(err)})
+      }))
     }
 }
 

@@ -5,7 +5,8 @@ Place to do experiment
 'use strict';
 
 const { WebClient } = require('@slack/web-api');
-const token = process.env.SLACK_AUTH_TOKEN;
+const token = process.env.SLACK_BOT_TOKEN;
+const admin_token = process.env.SLACK_USER_TOKEN;
 const web = new WebClient(token);
 
 const { inviteToChannels, getEmailsWithChannels, sleep } = require('./utils.js')
@@ -38,15 +39,13 @@ const main = async () => {
         await sleep(1000)
     
         try {
-            resp = await web.users.conversations({user: id, types: "public_channel,private_channel"})
+            resp = await web.users.conversations({token: admin_token, user: id, types: "public_channel,private_channel"})
         } catch (e) {
             console.log(`Error on users.conversations: ${e}`)
             continue
         }
         let channels_joined = resp['channels'].map(v => (v['id']))
-        
-        console.log(`Start to invite channels for user ${real_name}(${id})`)
-        channels = channels.filter(ch => channels_joined.includes(ch))
+        channels = channels.filter(ch => !channels_joined.includes(ch))
         inviteToChannels(id, channels)
     }
 }
