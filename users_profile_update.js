@@ -46,6 +46,7 @@ const main = async () => {
      
         console.log(`Start to update profile for user ${real_name}(${id})`)
         let userData = await getDataByEmail(email)
+        if (userData.length == 0) continue
         updateProfile(id, userData[0])
     }
 }

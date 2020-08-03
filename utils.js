@@ -23,7 +23,15 @@ const checkDBColumn = async (email, col) => {
   const client = new Client()
   await client.connect()
   await client.query(`UPDATE ivs2020summer_attendees SET ${col} = True WHERE email='${email.toLowerCase()}';`)
-  client.end()
+  await client.end()
+}
+
+const updateColByEmail = async (email, col, val) => {
+  const client = new Client()
+  await client.connect()
+  await client.query(`UPDATE ivs2020summer_attendees SET ${col} = '${val}' WHERE email='${email.toLowerCase()}';`)
+  await client.end()
+  return 
 }
 
 const getDataByEmail = async (email) => {
@@ -31,7 +39,7 @@ const getDataByEmail = async (email) => {
   const client = new Client()
   await client.connect()
   const result = await client.query(`SELECT * FROM ivs2020summer_attendees WHERE email='${email.toLowerCase()}';`)
-  client.end()
+  await client.end()
   return result.rows
 }
 
@@ -40,15 +48,24 @@ const getUnCheckedEmails = async () => {
     const client = new Client()
     await client.connect()
     let result = await client.query(`SELECT email FROM ivs2020summer_attendees WHERE profile_check = False;`)
-    client.end()
+    await client.end()
     return result.rows
+}
+
+const getAllNameEmails = async () => {
+  // get data from PostGres
+  const client = new Client()
+  await client.connect()
+  let result = await client.query(`SELECT username, email FROM ivs2020summer_attendees;`)
+  await client.end()
+  return result.rows
 }
 
 const getEmailsWithChannels = async () => {
   const client = new Client()
   await client.connect()
   let result = await client.query(`SELECT email, channels FROM ivs2020summer_attendees WHERE cardinality(channels) IS NOT null;`)
-  client.end()
+  await client.end()
   return result.rows
 }
 
@@ -82,23 +99,6 @@ const updateProfile = (targetUserId, profileDict) => {
       console.warn(e)
   })
 
-  /* const [files] = await storage.bucket(bucketName).getFiles();
-  console.log('Files:');
-  files.forEach(file => {
-    console.log(file.name);
-  });*/
-
-  // change profile img
-
-  if (profie_img){
-    storage.bucket(bucketName).file(profie_img).download(function(err, contents) {
-      web.users.setPhoto({image: contents}) 
-    }).then(() => {
-      checkDBColumn(email, 'photo_check')
-    }).catch(e => {
-      console.warn(e)
-    })
-  }
   return null
 }
   
@@ -128,5 +128,7 @@ module.exports = {
     noOpResponse: noOpResponse,
     getUnCheckedEmails: getUnCheckedEmails,
     getEmailsWithChannels: getEmailsWithChannels,
-    sleep: sleep
+    sleep: sleep,
+    getAllNameEmails: getAllNameEmails,
+    updateColByEmail: updateColByEmail
 }

@@ -59,7 +59,7 @@ exports.onboard = async (req, res) => {
 
   let data = await getDataByEmail(target_email)
   if (data.length == 0) return noOpResponse(res, `Don't get data from Postgres by email`)
-  console.warn(`Get data ${data}`)
+  console.warn(`Get data ${JSON.stringify(data)}`)
 
   if (team_join_cond | update_profile_cond) {
     updateProfile(target_user_id, data[0])
