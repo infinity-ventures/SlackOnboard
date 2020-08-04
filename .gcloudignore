@@ -18,3 +18,4 @@ users_profile_update.js
 reinvite_channels.js
 update_img.js
 #!include:.gitignore
+!.env

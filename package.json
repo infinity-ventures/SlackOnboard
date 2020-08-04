@@ -4,7 +4,11 @@
   "description": "When someone login to a workspace, we autofill the info to user's profile and invite them to corresponding channels",
   "main": "index.js",
   "scripts": {
-    "start": "functions-framework --target=onboard"
+    "start": "export ON_BOARD_ENV_FILE=.dev_env && functions-framework --target=onboard",
+    "deploy": "gcloud functions deploy onboard --runtime nodejs10 --trigger-http --region asia-northeast1 --allow-unauthenticated --vpc-connector ivp-network --clear-env-vars",
+    "update_profiles": "node -r dotenv/config users_profile_update.js dotenv_config_path=.dev_env",
+    "reinvite_channels": "node -r dotenv/config reinvite_channels.js dotenv_config_path=.dev_env",
+    "update_imgs": "node -r dotenv/config update_imgs.js dotenv_config_path=.dev_env"
   },
   "keywords": [],
   "author": "Ian Su",

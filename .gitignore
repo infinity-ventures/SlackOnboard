@@ -2,3 +2,4 @@ node_modules/
 package-lock.json
 introos-gcloud-func-storage.json
 .env
+.dev_env

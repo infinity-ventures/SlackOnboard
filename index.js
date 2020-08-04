@@ -4,8 +4,9 @@ The main script to be exec on Google Cloud Function
 
 'use strict';
 
-require('dotenv').config();
 
+const env_file_path = process.env.ON_BOARD_ENV_FILE || '.env'
+require('dotenv').config({ path: env_file_path });
 
 const { WebClient } = require('@slack/web-api');
 const token = process.env.SLACK_BOT_TOKEN;
@@ -16,7 +17,6 @@ const { getDataByEmail, updateProfile, inviteToChannels, noOpResponse } = requir
 const up_rex = /update\sprofile/i
 const invite_rex = /invite\schannels/i
 const user_id_rex = /\$([A-Z\d]+)\$/
-
 
 exports.onboard = async (req, res) => {
   let q = req.body;
