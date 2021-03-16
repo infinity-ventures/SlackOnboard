@@ -20,3 +20,6 @@ reinvite_channels.js
 update_img.js
 #!include:.gitignore
 !.env
+
+*.pickle
+.ipynb_checkpoints/

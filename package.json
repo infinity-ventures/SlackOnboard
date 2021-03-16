@@ -9,7 +9,7 @@
     "update_profiles": "node -r dotenv/config users_profile_update.js dotenv_config_path=.dev_env",
     "reinvite_channels": "node -r dotenv/config reinvite_channels.js dotenv_config_path=.dev_env",
     "update_imgs": "node -r dotenv/config update_imgs.js dotenv_config_path=.dev_env",
-    "create_attendees_table": "node -r dotenv/config -e 'require(\"./utils.js\").createIVSAttendeeTable(\"ivs2021spring_attendees\")' dotenv_config_path=.dev_env"
+    "create_attendees_table": "node -r dotenv/config -e 'require(\"./utils.js\").createIVSAttendeeTable()' dotenv_config_path=.dev_env"
   },
   "keywords": [],
   "author": "Ian Su",

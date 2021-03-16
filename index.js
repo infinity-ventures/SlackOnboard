@@ -12,7 +12,7 @@ const { WebClient } = require('@slack/web-api');
 const token = process.env.SLACK_BOT_TOKEN;
 const web = new WebClient(token);
 
-const { getDataByEmail, updateProfile, inviteToChannels, noOpResponse } = require('./utils.js')
+const { getDataByEmail, updateProfile, inviteToChannels, noOpResponse, createDataRow, checkEmailExists } = require('./utils.js')
 
 const up_rex = /update\sprofile/i
 const invite_rex = /invite\schannels/i
@@ -21,23 +21,37 @@ const user_id_rex = /\$([A-Z\d]+)\$/
 exports.onboard = async (req, res) => {
   let q = req.body;
 
+  // Verify request validity
   if (q.type === 'url_verification') {
     console.log('Slack URL verification request.');
-    // App setting validation
     return res.send(q.challenge);
-  } else if (q.token !== process.env.SLACK_VERIFICATION_TOKEN) {
-    // To see if the request is not coming from Slack.
+  } else if (q.token !== process.env.SLACK_VERIFICATION_TOKEN && q.token !== process.env.GOOGLE_APP_TOKEN) {
     console.warn('Invalid verification token.');
     return res.status(401);
   }
-
   // Events
+  let google_sheet_input_cond = (q.event.type == 'google_sheet_input')
   let team_join_cond = q.event.type === "team_join"
   let message_event_cond = q.event.type === "message"
   let update_profile_cond = message_event_cond ? q.event.text.match(up_rex) != null : false
   let invite_channels_cond = message_event_cond ? q.event.text.match(invite_rex) != null : false
   let target_email, target_user_id
 
+  if (google_sheet_input_cond) {
+    let email = q.event.data.email
+    let email_exists = await checkEmailExists(email)
+    console.log(email_exists)
+    if (email_exists) {
+      console.log(`email: ${email} already exist in db.`)
+    } else {
+      console.log(`import data ${JSON.stringify(q.event.data)}`)
+      createDataRow(q.event.data)
+    }
+    console.log("---")
+    res.status(200);
+    res.json({email: email});
+    return Promise.resolve();
+  }
 
   if (team_join_cond) {
     target_user_id = q.event.user.id

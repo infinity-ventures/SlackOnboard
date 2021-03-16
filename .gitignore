@@ -5,3 +5,5 @@ introos-gcloud-func-storage.json
 .dev_env
 
 data/
+*.pickle
+.ipynb_checkpoints/

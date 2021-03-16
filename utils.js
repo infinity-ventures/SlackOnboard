@@ -4,6 +4,7 @@ const { Client } = require('pg')
 const { WebClient } = require('@slack/web-api');
 const token = process.env.SLACK_BOT_TOKEN;
 const admin_token = process.env.SLACK_USER_TOKEN;
+const pg_tb_name = process.env.PG_TBNAME;
 const web = new WebClient(token);
 
 const { getCreateTableScript } = require('./pg_scripts.js')
@@ -21,17 +22,42 @@ if (process.env.GOOGLE_KEY_JSON){
 }
 const bucketName = "ivs_attendees"
 
+const createIVSAttendeeTable = async () => {
+  const client = new Client()
+  await client.connect()
+  await client.query(getCreateTableScript(pg_tb_name))
+  await client.end()
+}
+
 const checkDBColumn = async (email, col) => {
   const client = new Client()
   await client.connect()
-  await client.query(`UPDATE ivs2020summer_attendees SET ${col} = True WHERE email='${email.toLowerCase()}';`)
+  await client.query(`UPDATE ${pg_tb_name} SET ${col} = True WHERE email='${email.toLowerCase()}';`)
+  await client.end()
+}
+
+const checkEmailExists = async (email) => {
+  const client = new Client()
+  await client.connect()
+  const result = await client.query(`SELECT exists (SELECT 1 FROM ${pg_tb_name} WHERE email = '${email}' LIMIT 1);`)
+  await client.end
+  return result.rows[0]['exists']
+}
+
+const createDataRow = async (data) => {
+  const client = new Client()
+  await client.connect()
+  const col_str = Object.keys(data).join(", ")
+  const val_str = Object.values(data).map((x) => `'${x}'`).join(", ")
+  const query_str = `INSERT INTO ${pg_tb_name} (${col_str}) VALUES (${val_str})`
+  await client.query(query_str)
   await client.end()
 }
 
 const updateColByEmail = async (email, col, val) => {
   const client = new Client()
   await client.connect()
-  await client.query(`UPDATE ivs2020summer_attendees SET ${col} = '${val}' WHERE email='${email.toLowerCase()}';`)
+  await client.query(`UPDATE ${pg_tb_name} SET ${col} = '${val}' WHERE email='${email.toLowerCase()}';`)
   await client.end()
   return 
 }
@@ -40,7 +66,7 @@ const getDataByEmail = async (email) => {
   // get data from PostGres
   const client = new Client()
   await client.connect()
-  const result = await client.query(`SELECT * FROM ivs2020summer_attendees WHERE email='${email.toLowerCase()}';`)
+  const result = await client.query(`SELECT * FROM ${pg_tb_name} WHERE email='${email.toLowerCase()}';`)
   await client.end()
   return result.rows
 }
@@ -49,7 +75,7 @@ const getUnCheckedEmails = async () => {
     // get data from PostGres
     const client = new Client()
     await client.connect()
-    let result = await client.query(`SELECT email FROM ivs2020summer_attendees WHERE profile_check = False;`)
+    let result = await client.query(`SELECT email FROM ${pg_tb_name} WHERE profile_check = False;`)
     await client.end()
     return result.rows
 }
@@ -58,7 +84,7 @@ const getAllNameEmails = async () => {
   // get data from PostGres
   const client = new Client()
   await client.connect()
-  let result = await client.query(`SELECT username, email FROM ivs2020summer_attendees;`)
+  let result = await client.query(`SELECT username, email FROM ${pg_tb_name};`)
   await client.end()
   return result.rows
 }
@@ -66,17 +92,9 @@ const getAllNameEmails = async () => {
 const getEmailsWithChannels = async () => {
   const client = new Client()
   await client.connect()
-  let result = await client.query(`SELECT email, channels FROM ivs2020summer_attendees WHERE cardinality(channels) IS NOT null;`)
+  let result = await client.query(`SELECT email, channels FROM ${pg_tb_name} WHERE cardinality(channels) IS NOT null;`)
   await client.end()
   return result.rows
-}
-
-const createIVSAttendeeTable = async (name) => {
-  const client = new Client()
-  await client.connect()
-  let result = await client.query(getCreateTableScript(name))
-  await client.end()
-  return result.rows 
 }
 
 const roleStatusMap = {
@@ -143,5 +161,7 @@ module.exports = {
     sleep: sleep,
     getAllNameEmails: getAllNameEmails,
     updateColByEmail: updateColByEmail,
-    createIVSAttendeeTable: createIVSAttendeeTable
+    createIVSAttendeeTable: createIVSAttendeeTable,
+    createDataRow: createDataRow,
+    checkEmailExists: checkEmailExists
 }
