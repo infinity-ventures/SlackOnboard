@@ -13,6 +13,7 @@
 .git
 .gitignore
 
+data
 node_modules
 users_profile_update.js
 reinvite_channels.js

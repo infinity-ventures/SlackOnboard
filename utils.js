@@ -6,6 +6,7 @@ const token = process.env.SLACK_BOT_TOKEN;
 const admin_token = process.env.SLACK_USER_TOKEN;
 const web = new WebClient(token);
 
+const { getCreateTableScript } = require('./pg_scripts.js')
 
 const { Storage } = require('@google-cloud/storage');
 var storage
@@ -68,6 +69,14 @@ const getEmailsWithChannels = async () => {
   let result = await client.query(`SELECT email, channels FROM ivs2020summer_attendees WHERE cardinality(channels) IS NOT null;`)
   await client.end()
   return result.rows
+}
+
+const createIVSAttendeeTable = async (name) => {
+  const client = new Client()
+  await client.connect()
+  let result = await client.query(getCreateTableScript(name))
+  await client.end()
+  return result.rows 
 }
 
 const roleStatusMap = {
@@ -133,5 +142,6 @@ module.exports = {
     getEmailsWithChannels: getEmailsWithChannels,
     sleep: sleep,
     getAllNameEmails: getAllNameEmails,
-    updateColByEmail: updateColByEmail
+    updateColByEmail: updateColByEmail,
+    createIVSAttendeeTable: createIVSAttendeeTable
 }

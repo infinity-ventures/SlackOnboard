@@ -8,17 +8,20 @@
     "deploy": "gcloud functions deploy onboard --runtime nodejs10 --trigger-http --region asia-northeast1 --allow-unauthenticated --vpc-connector ivp-network --clear-env-vars",
     "update_profiles": "node -r dotenv/config users_profile_update.js dotenv_config_path=.dev_env",
     "reinvite_channels": "node -r dotenv/config reinvite_channels.js dotenv_config_path=.dev_env",
-    "update_imgs": "node -r dotenv/config update_imgs.js dotenv_config_path=.dev_env"
+    "update_imgs": "node -r dotenv/config update_imgs.js dotenv_config_path=.dev_env",
+    "create_attendees_table": "node -r dotenv/config -e 'require(\"./utils.js\").createIVSAttendeeTable(\"ivs2021spring_attendees\")' dotenv_config_path=.dev_env"
   },
   "keywords": [],
   "author": "Ian Su",
   "license": "MIT",
   "dependencies": {
-    "@google-cloud/functions-framework": "^1.6.0",
     "@google-cloud/storage": "^5.1.2",
     "@slack/events-api": "^2.3.0",
     "@slack/web-api": "^5.10.0",
     "dotenv": "^8.2.0",
     "pg": "^8.3.0"
+  },
+  "devDependencies": {
+    "@google-cloud/functions-framework": "^1.7.1"
   }
 }
